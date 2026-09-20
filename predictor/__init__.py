@@ -1,0 +1,1 @@
+# Predictor app init

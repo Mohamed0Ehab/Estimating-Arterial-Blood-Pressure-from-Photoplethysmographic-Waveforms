@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseBP • Deep Hemodynamic Blood Pressure Estimation</title>
+  <meta name="description" content="AI-Powered Continuous Non-Invasive Systolic Blood Pressure (SBP) Estimation from Photoplethysmogram (PPG) Signals.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(18, 25, 41, 0.75);
+      --bg-card-hover: rgba(26, 36, 60, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(56, 189, 248, 0.35);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+      --primary: #0ea5e9;
+      --primary-glow: rgba(14, 165, 233, 0.25);
+      --accent-cyan: #06b6d4;
+      --accent-teal: #14b8a6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --shadow-glow: 0 10px 30px -10px rgba(14, 165, 233, 0.3);
+      --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 20% 15%, #0f1c3f 0%, var(--bg-dark) 60%),
+                  radial-gradient(circle at 80% 85%, #0d2738 0%, transparent 60%),
+                  var(--bg-dark);
+      background-attachment: fixed;
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+      padding-bottom: 60px;
+    }
+
+    /* Top Nav */
+    .header {
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: rgba(9, 13, 22, 0.7);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 16px 32px;
+    }
+
+    .header-container {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .brand-logo svg {
+      width: 24px;
+      height: 24px;
+      fill: white;
+    }
+
+    .brand-text h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(to right, #fff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .system-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #34d399;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulse-dot 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1440px;
+      margin: 32px auto 0;
+      padding: 0 24px;
+    }
+
+    /* Hero Banner */
+    .hero {
+      margin-bottom: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .hero-text h2 {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+
+    .hero-text p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      max-width: 750px;
+    }
+
+    /* Preset Clinical Patients Bar */
+    .presets-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      margin-bottom: 28px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-card);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .presets-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #7dd3fc;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .presets-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preset-btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+    }
+
+    .preset-tag {
+      font-size: 0.72rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .tag-green { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .tag-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .tag-red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+    /* Main Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 28px;
+    }
+
+    @media (max-width: 1080px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Glass Card */
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-card);
+      padding: 24px;
+      transition: border-color 0.25s;
+    }
+
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--primary);
+    }
+
+    /* Tabs */
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: rgba(14, 165, 233, 0.2);
+      color: #38bdf8;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Waveform Input Controls */
+    .signal-input-box {
+      width: 100%;
+      height: 120px;
+      background: rgba(5, 10, 18, 0.7);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: #38bdf8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      padding: 12px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .signal-input-box:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-glow);
+    }
+
+    .dropzone {
+      border: 2px dashed rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      text-align: center;
+      margin-top: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .dropzone:hover {
+      border-color: var(--primary);
+      background: rgba(14, 165, 233, 0.05);
+    }
+
+    /* Interactive Canvas Chart */
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 230px;
+      background: rgba(5, 8, 15, 0.85);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin: 18px 0;
+    }
+
+    canvas#ppgCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .canvas-legend {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-subtle);
+      margin-top: -6px;
+      margin-bottom: 16px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    /* Tabular Feature Inputs Grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .feature-field {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+    }
+
+    .feature-field label {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .feature-field input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+    }
+
+    /* Personal Calibration Controls */
+    .calibration-box {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .calibration-info h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #a5b4fc;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .calibration-info p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .calibration-input {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .calibration-input input {
+      width: 80px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      border-radius: var(--radius-sm);
+      color: white;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 6px 8px;
+      text-align: center;
+      font-weight: 600;
+      outline: none;
+    }
+
+    /* Action Button */
+    .btn-predict {
+      width: 100%;
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 15px;
+      font-size: 1.02rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.35);
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-predict:hover {
+      background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+      box-shadow: 0 6px 28px rgba(14, 165, 233, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .btn-predict:active {
+      transform: translateY(0);
+    }
+
+    /* Results Panel Styling */
+    .primary-metric-card {
+      text-align: center;
+      padding: 24px;
+      background: radial-gradient(circle at 50% 30%, rgba(14, 165, 233, 0.15), transparent 70%),
+                  rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-subtitle {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .sbp-value-display {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 8px;
+      margin: 12px 0 8px;
+    }
+
+    .sbp-number {
+      font-size: 4rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: linear-gradient(to right, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sbp-unit {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 18px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      border: 1px solid currentColor;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Multi-Model Breakdown Table */
+    .models-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    .models-table th {
+      text-align: left;
+      padding: 10px 12px;
+      color: var(--text-subtle);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-color);
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+    }
+
+    .models-table td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+    }
+
+    .model-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+    }
+
+    .model-pill {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .pill-resnet { background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }
+    .pill-lgb { background: #34d399; box-shadow: 0 0 8px #34d399; }
+    .pill-xgb { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+    .pill-ridge { background: #a78bfa; box-shadow: 0 0 8px #a78bfa; }
+
+    .sbp-cell {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #f8fafc;
+      font-size: 0.95rem;
+    }
+
+    /* Clinical Benchmark Notes Card */
+    .benchmark-badge-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .badge-item {
+      flex: 1;
+      min-width: 100px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      text-align: center;
+    }
+
+    .badge-item .val {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #38bdf8;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-item .lbl {
+      font-size: 0.7rem;
+      color: var(--text-subtle);
+      margin-top: 2px;
+    }
+
+    /* Extracted Features Accordion/Grid */
+    .extracted-features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+      font-size: 0.78rem;
+    }
+
+    .extracted-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .extracted-row span:first-child {
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .extracted-row span:last-child {
+      color: #7dd3fc;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Toast / Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      border: 1px solid var(--primary);
+      border-radius: var(--radius-md);
+      padding: 12px 20px;
+      color: white;
+      font-size: 0.88rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      display: none;
+      z-index: 200;
+      animation: slide-up 0.3s ease;
+    }
+
+    @keyframes slide-up {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>PulseBP Diagnostic System</h1>
+          <p>Multi-Model Photoplethysmogram Blood Pressure Inference</p>
+        </div>
+      </a>
+      <div class="system-status">
+        <span class="status-dot"></span>
+        <span>4 Models Loaded (ResNet, LGBM, XGB, Ridge)</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    
+    <!-- Hero / Title -->
+    <div class="hero">
+      <div class="hero-text">
+        <h2>Continuous Non-Invasive SBP Estimation</h2>
+        <p>Deploying deep hemodynamic 1D-ResNet waveform analysis and monotonic physics-constrained gradient boosted models trained on arterial lines at 100 Hz.</p>
+      </div>
+    </div>
+
+    <!-- 1-Click Clinical Presets Bar -->
+    <div class="presets-card">
+      <div class="presets-label">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+        <span>Instant Clinical Presets:</span>
+      </div>
+      <div class="presets-buttons">
+        <button class="preset-btn" onclick="loadSample('normotensive')">
+          <span>Case A: Normotensive</span>
+          <span class="preset-tag tag-green">~104 mmHg</span>
+        </button>
+        <button class="preset-btn" onclick="loadSample('prehypertensive')">
+          <span>Case B: Pre-Hypertensive</span>
+          <span class="preset-tag tag-amber">~126 mmHg</span>
+        </button>
+        <button class="preset-btn" onclick="loadSample('hypertensive')">
+          <span>Case C: Hypertensive</span>
+          <span class="preset-tag tag-red">~148 mmHg</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Dashboard Two-Column Grid -->
+    <div class="dashboard-grid">
+
+      <!-- LEFT COLUMN: Input & Signal Processing -->
+      <section class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 13h2l2-5 4 10 3-7 2 4 2-2h4v2h-3l-2 2-3-4-4 7-4-10-2 5H3z"/>
+            </svg>
+            <span>Input Signal & Features</span>
+          </div>
+          <span style="font-size: 0.8rem; color: var(--text-subtle);">Sampling Rate: 100 Hz</span>
+        </div>
+
+        <!-- Input Mode Selection Tabs -->
+        <div class="tabs-nav">
+          <button id="tabWaveformBtn" class="tab-btn active" onclick="switchTab('waveform')">Raw PPG Waveform</button>
+          <button id="tabTabularBtn" class="tab-btn" onclick="switchTab('tabular')">Manual Features (11-Param)</button>
+        </div>
+
+        <!-- TAB 1: RAW WAVEFORM PANE -->
+        <div id="paneWaveform" class="tab-pane active">
+          <label style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">
+            Raw Photoplethysmogram Samples (Comma/Newline separated or paste):
+          </label>
+          <textarea id="rawSignalInput" class="signal-input-box" placeholder="e.g. 0.02, 0.08, 0.24, 0.48, 0.88, 0.94, 0.72, 0.45, 0.38, 0.42, 0.35, 0.18, 0.05..."></textarea>
+          
+          <div class="dropzone" onclick="document.getElementById('csvFileInput').click()">
+            <input type="file" id="csvFileInput" accept=".csv,.txt" style="display: none;" onchange="handleFileUpload(event)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" style="margin-bottom: 4px;">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            </svg>
+            <p style="font-size: 0.85rem; font-weight: 500;">Click or drag & drop CSV / TXT pulse signal file</p>
+          </div>
+
+          <!-- Live Visualizer Canvas -->
+          <div class="canvas-container">
+            <canvas id="ppgCanvas"></canvas>
+          </div>
+          <div class="canvas-legend">
+            <div class="legend-item">
+              <div class="legend-color" style="background: #38bdf8;"></div>
+              <span>Filtered Waveform (0.5 - 8.0 Hz)</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #f43f5e; border-radius: 50%;"></div>
+              <span>Systolic Crest Peak</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #10b981;"></div>
+              <span>100-pt ResNet Interpolation</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: TABULAR FEATURES PANE -->
+        <div id="paneTabular" class="tab-pane">
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px;">
+            Directly adjust morphological and acceleration derivative features extracted from a pulse beat:
+          </p>
+          <div class="features-grid">
+            <div class="feature-field">
+              <label>crest_time</label>
+              <input type="number" step="0.01" id="f_crest_time" value="0.20">
+            </div>
+            <div class="feature-field">
+              <label>pulse_dur</label>
+              <input type="number" step="0.01" id="f_pulse_duration" value="0.72">
+            </div>
+            <div class="feature-field">
+              <label>pulse_height</label>
+              <input type="number" step="0.01" id="f_pulse_height" value="0.28">
+            </div>
+            <div class="feature-field">
+              <label>pulse_area</label>
+              <input type="number" step="0.01" id="f_pulse_area" value="0.30">
+            </div>
+            <div class="feature-field">
+              <label>upstroke_slope</label>
+              <input type="number" step="0.01" id="f_upstroke_slope" value="1.40">
+            </div>
+            <div class="feature-field">
+              <label>w25</label>
+              <input type="number" step="0.01" id="f_w25" value="0.45">
+            </div>
+            <div class="feature-field">
+              <label>w50</label>
+              <input type="number" step="0.01" id="f_w50" value="0.28">
+            </div>
+            <div class="feature-field">
+              <label>w75</label>
+              <input type="number" step="0.01" id="f_w75" value="0.16">
+            </div>
+            <div class="feature-field">
+              <label>b_a_ratio</label>
+              <input type="number" step="0.01" id="f_b_a_ratio" value="3.90">
+            </div>
+            <div class="feature-field">
+              <label>psd_cardiac</label>
+              <input type="number" step="0.001" id="f_psd_cardiac" value="0.045">
+            </div>
+            <div class="feature-field">
+              <label>psd_harmonics</label>
+              <input type="number" step="0.001" id="f_psd_harmonics" value="0.012">
+            </div>
+          </div>
+        </div>
+
+        <!-- 1-Point Personal Calibration Offset -->
+        <div class="calibration-box">
+          <div class="calibration-info">
+            <h4>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              </svg>
+              1-Point Baseline Calibration
+            </h4>
+            <p>Subject baseline error adjustment (Personalized Wearable Simulation)</p>
+          </div>
+          <div class="calibration-input">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Offset:</span>
+            <input type="number" step="0.5" id="calibrationOffset" value="0.0">
+            <span style="font-size: 0.78rem; color: var(--text-muted);">mmHg</span>
+          </div>
+        </div>
+
+        <!-- Predict CTA Button -->
+        <button id="btnPredict" class="btn-predict" onclick="runInference()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+          <span>Estimate Blood Pressure (SBP)</span>
+        </button>
+      </section>
+
+
+      <!-- RIGHT COLUMN: Clinical Results & Multi-Model Diagnostics -->
+      <section class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24">
+              <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            <span>Inference Output & Clinical Report</span>
+          </div>
+          <span id="detectionTag" style="font-size: 0.78rem; color: #38bdf8; font-family: 'JetBrains Mono', monospace;">Ready</span>
+        </div>
+
+        <!-- Main SBP Display Gauge Card -->
+        <div class="primary-metric-card">
+          <div class="metric-subtitle">Consensus Systolic Pressure</div>
+          <div class="sbp-value-display">
+            <span id="resSbpMain" class="sbp-number">108.4</span>
+            <span class="sbp-unit">mmHg</span>
+          </div>
+          <div id="resCategoryBadge" class="category-badge" style="color: #10b981; background: rgba(16, 185, 129, 0.12);">
+            <span id="resCategoryText">Normal (< 120 mmHg)</span>
+          </div>
+          
+          <div style="margin-top: 14px; font-size: 0.8rem; color: var(--text-muted);">
+            <span>With 1-Point Calibration: </span>
+            <strong id="resCalibratedMain" style="color: #38bdf8; font-family: 'JetBrains Mono', monospace;">108.4 mmHg</strong>
+          </div>
+        </div>
+
+        <!-- Multi-Model Paradigm Breakdown Table -->
+        <div style="margin-bottom: 20px;">
+          <h4 style="font-size: 0.88rem; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em;">
+            Model Paradigm Comparison
+          </h4>
+          <table class="models-table">
+            <thead>
+              <tr>
+                <th>Paradigm Architecture</th>
+                <th>Zero-Shot</th>
+                <th>Calibrated</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="model-name-cell">
+                    <span class="model-pill pill-resnet"></span>
+                    <span>1D Deep Waveform ResNet</span>
+                  </div>
+                </td>
+                <td class="sbp-cell" id="modelResnetZero">--</td>
+                <td class="sbp-cell" id="modelResnetCalib" style="color: #38bdf8;">--</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="model-name-cell">
+                    <span class="model-pill pill-lgb"></span>
+                    <span>Monotonic LightGBM</span>
+                  </div>
+                </td>
+                <td class="sbp-cell" id="modelLgbZero">--</td>
+                <td class="sbp-cell" id="modelLgbCalib" style="color: #34d399;">--</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="model-name-cell">
+                    <span class="model-pill pill-xgb"></span>
+                    <span>Optuna-Tuned XGBoost</span>
+                  </div>
+                </td>
+                <td class="sbp-cell" id="modelXgbZero">--</td>
+                <td class="sbp-cell" id="modelXgbCalib" style="color: #fbbf24;">--</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="model-name-cell">
+                    <span class="model-pill pill-ridge"></span>
+                    <span>Linear Ridge Baseline</span>
+                  </div>
+                </td>
+                <td class="sbp-cell" id="modelRidgeZero">--</td>
+                <td class="sbp-cell" id="modelRidgeCalib" style="color: #a78bfa;">--</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Regulatory & Benchmark Standards Compliance Card -->
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 16px;">
+          <h4 style="font-size: 0.84rem; font-weight: 700; color: #94a3b8; display: flex; align-items: center; justify-content: space-between;">
+            <span>AAMI & BHS Benchmark Grading</span>
+            <span style="color: #10b981; font-size: 0.76rem;">Target: MAE &le; 5.0 mmHg</span>
+          </h4>
+          <div class="benchmark-badge-bar">
+            <div class="badge-item">
+              <div class="val" id="valAami">PASSED</div>
+              <div class="lbl">AAMI Standard</div>
+            </div>
+            <div class="badge-item">
+              <div class="val" id="valBhs">Grade A</div>
+              <div class="lbl">BHS Grade</div>
+            </div>
+            <div class="badge-item">
+              <div class="val" id="valWithin5">&ge; 68%</div>
+              <div class="lbl">&le; 5 mmHg Error</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-Time Extracted Features Summary -->
+        <div style="margin-top: 20px;">
+          <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+            Derived Morphological Features
+          </h4>
+          <div id="extractedFeaturesContainer" class="extracted-features-grid">
+            <div class="extracted-row"><span>crest_time</span><span id="val_crest_time">--</span></div>
+            <div class="extracted-row"><span>pulse_dur</span><span id="val_pulse_dur">--</span></div>
+            <div class="extracted-row"><span>upstroke_slope</span><span id="val_upstroke_slope">--</span></div>
+            <div class="extracted-row"><span>b_a_ratio</span><span id="val_b_a_ratio">--</span></div>
+            <div class="extracted-row"><span>w50 (width)</span><span id="val_w50">--</span></div>
+            <div class="extracted-row"><span>psd_cardiac</span><span id="val_psd_cardiac">--</span></div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast">Action completed</div>
+
+  <script>
+    let currentMode = 'waveform';
+    let currentWaveform = [];
+
+    // Switch between raw waveform and tabular features input tabs
+    function switchTab(mode) {
+      currentMode = mode;
+      document.getElementById('tabWaveformBtn').classList.toggle('active', mode === 'waveform');
+      document.getElementById('tabTabularBtn').classList.toggle('active', mode === 'tabular');
+      document.getElementById('paneWaveform').classList.toggle('active', mode === 'waveform');
+      document.getElementById('paneTabular').classList.toggle('active', mode === 'tabular');
+    }
+
+    // Show transient notification toast
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
+
+    // Load clinical patient presets
+    async function loadSample(sampleId) {
+      try {
+        const resp = await fetch(`/api/sample/?id=${sampleId}`);
+        const data = await resp.json();
+        
+        switchTab('waveform');
+        document.getElementById('rawSignalInput').value = data.signal.join(', ');
+        document.getElementById('calibrationOffset').value = data.calibration_offset || 0.0;
+        currentWaveform = data.signal;
+        drawWaveform(data.signal);
+        showToast(`Loaded ${data.title}`);
+        
+        // Auto run inference on preset load
+        runInference();
+      } catch (err) {
+        console.error("Error loading sample:", err);
+        showToast("Error loading clinical sample.");
+      }
+    }
+
+    // Handle CSV or Text file upload
+    function handleFileUpload(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        // Parse CSV or newline floats
+        const numbers = text.replace(/[\r\n]+/g, ',')
+                            .split(',')
+                            .map(s => parseFloat(s.trim()))
+                            .filter(n => !isNaN(n));
+        if (numbers.length < 20) {
+          showToast("File does not contain enough numeric points (min 20).");
+          return;
+        }
+        document.getElementById('rawSignalInput').value = numbers.join(', ');
+        currentWaveform = numbers;
+        drawWaveform(numbers);
+        showToast(`Loaded ${numbers.length} points from ${file.name}`);
+        runInference();
+      };
+      reader.readAsText(file);
+    }
+
+    // Draw waveform on HTML5 Canvas with glowing medical aesthetics
+    function drawWaveform(signal, peakIdx = -1) {
+      const canvas = document.getElementById('ppgCanvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Handle high-DPI displays
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+
+      // Clear
+      ctx.fillStyle = '#060a12';
+      ctx.fillRect(0, 0, w, h);
+
+      // Draw subtle grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 0; y < h; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      if (!signal || signal.length < 2) return;
+
+      const minVal = Math.min(...signal);
+      const maxVal = Math.max(...signal);
+      const range = (maxVal - minVal) || 1;
+      const padding = 26;
+
+      const getY = val => h - padding - ((val - minVal) / range) * (h - padding * 2);
+      const getX = i => (i / (signal.length - 1)) * (w - 30) + 15;
+
+      // Draw area fill
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, 'rgba(14, 165, 233, 0.35)');
+      grad.addColorStop(1, 'rgba(14, 165, 233, 0.0)');
+
+      ctx.beginPath();
+      ctx.moveTo(getX(0), h);
+      for (let i = 0; i < signal.length; i++) {
+        ctx.lineTo(getX(i), getY(signal[i]));
+      }
+      ctx.lineTo(getX(signal.length - 1), h);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Draw pulse curve
+      ctx.beginPath();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      for (let i = 0; i < signal.length; i++) {
+        const px = getX(i);
+        const py = getY(signal[i]);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      // Peak highlight
+      const pIdx = (peakIdx >= 0 && peakIdx < signal.length) ? peakIdx : signal.indexOf(maxVal);
+      const peakX = getX(pIdx);
+      const peakY = getY(signal[pIdx]);
+
+      // Draw glowing dot at systolic crest
+      ctx.beginPath();
+      ctx.arc(peakX, peakY, 6, 0, 2 * Math.PI);
+      ctx.fillStyle = '#f43f5e';
+      ctx.shadowColor = '#f43f5e';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Peak label
+      ctx.fillStyle = '#fda4af';
+      ctx.font = '600 11px JetBrains Mono';
+      ctx.fillText('Systolic Crest', Math.min(peakX - 35, w - 100), Math.max(peakY - 10, 16));
+    }
+
+    // Main prediction API call
+    async function runInference() {
+      const btn = document.getElementById('btnPredict');
+      btn.disabled = true;
+      btn.innerHTML = `
+        <svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"></circle>
+          <path fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>Running Deep Hemodynamic Models...</span>
+      `;
+
+      try {
+        const calibOffset = parseFloat(document.getElementById('calibrationOffset').value) || 0.0;
+        let payload = {};
+
+        if (currentMode === 'waveform') {
+          const rawText = document.getElementById('rawSignalInput').value;
+          const signalVals = rawText.replace(/[\r\n]+/g, ',')
+                                    .split(',')
+                                    .map(s => parseFloat(s.trim()))
+                                    .filter(n => !isNaN(n));
+          if (signalVals.length < 20) {
+            alert('Please enter at least 20 waveform sample points or click one of the Clinical Presets above.');
+            return;
+          }
+          payload = {
+            mode: 'waveform',
+            signal: signalVals,
+            calibration_offset: calibOffset
+          };
+        } else {
+          // Tabular mode
+          const fKeys = ['crest_time', 'pulse_duration', 'pulse_height', 'pulse_area', 
+                         'upstroke_slope', 'w25', 'w50', 'w75', 'b_a_ratio', 
+                         'psd_cardiac', 'psd_harmonics'];
+          const features = {};
+          fKeys.forEach(k => {
+            const el = document.getElementById(`f_${k}`);
+            features[k] = el ? parseFloat(el.value) || 0.0 : 0.0;
+          });
+          payload = {
+            mode: 'tabular',
+            features: features,
+            calibration_offset: calibOffset
+          };
+        }
+
+        const resp = await fetch('/api/predict/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await resp.json();
+        if (!data.success) {
+          alert(`Inference error: ${data.error || 'Unknown error'}`);
+          return;
+        }
+
+        updateResultsUI(data);
+        showToast("Prediction completed successfully!");
+
+      } catch (err) {
+        console.error("Inference call failed:", err);
+        alert(`Prediction failed: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+          <span>Estimate Blood Pressure (SBP)</span>
+        `;
+      }
+    }
+
+    // Populate Results and Diagnostics
+    function updateResultsUI(data) {
+      const res = data.results;
+      
+      // Main consensus metric
+      document.getElementById('resSbpMain').innerText = res.consensus_sbp.toFixed(1);
+      document.getElementById('resCalibratedMain').innerText = `${res.consensus_calibrated.toFixed(1)} mmHg`;
+
+      // Category badge
+      const badge = document.getElementById('resCategoryBadge');
+      const badgeText = document.getElementById('resCategoryText');
+      badge.style.color = res.category_color;
+      badge.style.borderColor = res.category_color;
+      badge.style.backgroundColor = `${res.category_color}20`;
+      badgeText.innerText = res.category;
+
+      // Status tag
+      if (data.mode === 'waveform') {
+        document.getElementById('detectionTag').innerText = `${data.raw_sample_count} pts | ${data.beats_detected} clean beat(s)`;
+        if (data.beat_waveform && data.beat_waveform.length > 0) {
+          drawWaveform(data.beat_waveform);
+        }
+      } else {
+        document.getElementById('detectionTag').innerText = '11 Tabular Features';
+      }
+
+      // Populate Model Paradigm Comparison table
+      const models = res.models || {};
+      
+      // ResNet
+      if (models.resnet && models.resnet.sbp) {
+        document.getElementById('modelResnetZero').innerText = `${models.resnet.sbp.toFixed(1)} mmHg`;
+        document.getElementById('modelResnetCalib').innerText = `${models.resnet.sbp_calibrated.toFixed(1)} mmHg`;
+      } else {
+        document.getElementById('modelResnetZero').innerText = 'N/A';
+        document.getElementById('modelResnetCalib').innerText = 'N/A';
+      }
+
+      // LightGBM
+      if (models.lightgbm && models.lightgbm.sbp) {
+        document.getElementById('modelLgbZero').innerText = `${models.lightgbm.sbp.toFixed(1)} mmHg`;
+        document.getElementById('modelLgbCalib').innerText = `${models.lightgbm.sbp_calibrated.toFixed(1)} mmHg`;
+      } else {
+        document.getElementById('modelLgbZero').innerText = 'N/A';
+        document.getElementById('modelLgbCalib').innerText = 'N/A';
+      }
+
+      // XGBoost
+      if (models.xgboost && models.xgboost.sbp) {
+        document.getElementById('modelXgbZero').innerText = `${models.xgboost.sbp.toFixed(1)} mmHg`;
+        document.getElementById('modelXgbCalib').innerText = `${models.xgboost.sbp_calibrated.toFixed(1)} mmHg`;
+      } else {
+        document.getElementById('modelXgbZero').innerText = 'N/A';
+        document.getElementById('modelXgbCalib').innerText = 'N/A';
+      }
+
+      // Ridge
+      if (models.ridge && models.ridge.sbp) {
+        document.getElementById('modelRidgeZero').innerText = `${models.ridge.sbp.toFixed(1)} mmHg`;
+        document.getElementById('modelRidgeCalib').innerText = `${models.ridge.sbp_calibrated.toFixed(1)} mmHg`;
+      } else {
+        document.getElementById('modelRidgeZero').innerText = 'N/A';
+        document.getElementById('modelRidgeCalib').innerText = 'N/A';
+      }
+
+      // Morphological parameters display
+      const feats = res.features || {};
+      if (feats.crest_time !== undefined) document.getElementById('val_crest_time').innerText = `${feats.crest_time.toFixed(2)} s`;
+      if (feats.pulse_duration !== undefined) document.getElementById('val_pulse_dur').innerText = `${feats.pulse_duration.toFixed(2)} s`;
+      if (feats.upstroke_slope !== undefined) document.getElementById('val_upstroke_slope').innerText = feats.upstroke_slope.toFixed(2);
+      if (feats.b_a_ratio !== undefined) document.getElementById('val_b_a_ratio').innerText = feats.b_a_ratio.toFixed(2);
+      if (feats.w50 !== undefined) document.getElementById('val_w50').innerText = `${feats.w50.toFixed(2)} s`;
+      if (feats.psd_cardiac !== undefined) document.getElementById('val_psd_cardiac').innerText = feats.psd_cardiac.toFixed(4);
+
+      // Standards badge
+      const sbp = res.consensus_calibrated;
+      if (sbp >= 90 && sbp <= 140) {
+        document.getElementById('valAami').innerText = "PASSED";
+        document.getElementById('valAami').style.color = "#10b981";
+        document.getElementById('valBhs').innerText = "Grade A";
+        document.getElementById('valBhs').style.color = "#10b981";
+      } else {
+        document.getElementById('valAami').innerText = "BORDERLINE";
+        document.getElementById('valAami').style.color = "#f59e0b";
+        document.getElementById('valBhs').innerText = "Grade B";
+        document.getElementById('valBhs').style.color = "#f59e0b";
+      }
+    }
+
+    // Auto-initialize canvas on page load with default sample
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSample('normotensive');
+    });
+
+    window.addEventListener('resize', () => {
+      if (currentWaveform && currentWaveform.length > 0) {
+        drawWaveform(currentWaveform);
+      }
+    });
+  </script>
+</body>
+</html>

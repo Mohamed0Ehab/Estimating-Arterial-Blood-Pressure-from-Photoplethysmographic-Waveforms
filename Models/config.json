@@ -1,0 +1,1 @@
+{"tab_features": ["crest_time", "pulse_duration", "pulse_height", "pulse_area", "upstroke_slope", "w25", "w50", "w75", "b_a_ratio", "psd_cardiac", "psd_harmonics"], "fixed_len": 100, "sample_rate": 100}
